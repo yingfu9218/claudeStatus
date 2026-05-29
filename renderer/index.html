@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'">
+  <title>Claude Code 账号额度</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="app" class="state-loading">
+    <div id="loading-view">
+      <p class="subtitle">正在加载…</p>
+    </div>
+
+    <div id="error-view" hidden>
+      <h2>无法连接到服务器</h2>
+      <button id="retry-btn" type="button">立即刷新</button>
+    </div>
+
+    <div id="data-view" hidden>
+      <h1>Claude Code 账号额度</h1>
+      <p class="updated" id="updated-text">上次更新：刚刚</p>
+
+      <section class="metric">
+        <div class="metric-label">每日费用限制</div>
+        <div class="metric-value" id="daily-value">$0.0000 / $0.00</div>
+        <div class="bar-track"><div class="bar-fill" id="daily-bar"></div></div>
+        <div class="bar-pct" id="daily-pct">0.00%</div>
+      </section>
+
+      <section class="metric">
+        <div class="metric-label">Claude 模型周费用限制</div>
+        <div class="metric-value" id="weekly-value">$0.0000 / $0.00</div>
+        <div class="bar-track"><div class="bar-fill" id="weekly-bar"></div></div>
+        <div class="bar-pct" id="weekly-pct">0.00%</div>
+      </section>
+    </div>
+  </main>
+  <script src="renderer.js"></script>
+</body>
+</html>

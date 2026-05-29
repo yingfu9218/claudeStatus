@@ -1,0 +1,8 @@
+node_modules/
+.superpowers/
+*.log
+config.json
+docs/
+.superpowers/
+test/
+.claude/

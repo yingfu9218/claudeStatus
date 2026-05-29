@@ -1,0 +1,13 @@
+{
+  "name": "claude-status",
+  "version": "0.1.0",
+  "description": "Tray app showing Claude Code daily/weekly cost usage",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/**/*.test.js"
+  },
+  "devDependencies": {
+    "electron": "^32.0.0"
+  }
+}

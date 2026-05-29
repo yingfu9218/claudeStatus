@@ -1,0 +1,6 @@
+{
+  "apiId": "YOUR-API-ID-UUID-HERE",
+  "apiHost": "xxxxx.com",
+  "apiPath": "/apiStats/api/user-stats",
+  "pollIntervalMs": 30000
+}
