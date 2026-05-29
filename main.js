@@ -64,13 +64,20 @@ function createWindow() {
 }
 
 function createTray() {
-  const iconPath = path.join(__dirname, 'assets', 'tray-icon.png');
+  // macOS 用模板图标（黑色 + 透明），系统自动按菜单栏主题反色；
+  // 其他平台用彩色 sparkle。
+  const iconPath = process.platform === 'darwin'
+    ? path.join(__dirname, 'assets', 'tray-iconTemplate.png')
+    : path.join(__dirname, 'assets', 'tray-icon.png');
   const icon = nativeImage.createFromPath(iconPath);
-  if (process.platform === 'darwin') icon.setTemplateImage(true);
+  // 模板图像：xxxTemplate.png 命名约定 Electron 会自动识别，无需手动 setTemplateImage
 
   tray = new Tray(icon);
-  tray.setTitle('  $-- / $--');             // macOS 菜单栏文字；Linux 多数桌面不显示
+  tray.setTitle('$-- / $--');               // macOS 菜单栏文字；Linux 多数桌面不显示
   tray.setToolTip('Claude Code 账号额度 — $-- / $--');
+  if (process.platform === 'darwin') {
+    tray.setIgnoreDoubleClickEvents(true);  // 单击立即响应，不等双击判定
+  }
 
   const contextMenu = Menu.buildFromTemplate([
     { label: '显示主窗口', click: () => { mainWindow && mainWindow.show(); mainWindow && mainWindow.focus(); } },
@@ -109,7 +116,7 @@ function broadcast() {
 
   if (tray) {
     const txt = lastSuccess ? lastSuccess.trayText : '$-- / $--';
-    tray.setTitle(lastError ? `● ${txt}` : `  ${txt}`);   // macOS only
+    tray.setTitle(lastError ? `●${txt}` : txt);          // macOS only；去前缀空格压缩宽度
     tray.setToolTip(`Claude Code 账号额度 — ${txt}`);
   }
 
