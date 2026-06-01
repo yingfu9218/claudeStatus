@@ -6,8 +6,11 @@ const { loadConfig, saveConfig, isConfigured } = require('./lib/config');
 // Ubuntu 24.04+ 默认限制非特权 user namespace（AppArmor
 // apparmor_restrict_unprivileged_userns=1），Electron 的 SUID 沙箱因此无法启动，
 // 安装版（/opt 下）会一启动就崩。本应用只渲染本地 UI，关闭沙箱影响很小。
-// 必须在 app ready 之前追加该开关。
+// 某些桌面环境 /dev/shm 权限或挂载异常会让 Chromium 渲染进程崩溃，
+// 导致本地 file:// 页面加载失败；改用临时目录保存共享内存。
+// 必须在 app ready 之前追加这些开关。
 app.commandLine.appendSwitch('no-sandbox');
+app.commandLine.appendSwitch('disable-dev-shm-usage');
 
 let CONFIG = null;        // 运行时配置，在 app ready 后从 userData 读取
 let CONFIG_DIR = null;    // app.getPath('userData')
@@ -33,10 +36,28 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: false,
     },
   });
   mainWindow.setMenuBarVisibility(false);
-  mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+
+  // Packaged Linux builds can load the local file before app.whenReady's later
+  // setup continues, so bind load events before calling loadFile().
+  mainWindow.webContents.on('did-finish-load', () => {
+    broadcast();
+    fetchAndBroadcast();
+    if (!isConfigured(CONFIG)) openSettingsWindow();
+  });
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    console.error(`Main window failed to load ${validatedURL}: ${errorCode} ${errorDescription}`);
+  });
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    console.error(`Main window renderer exited: ${details.reason} (${details.exitCode})`);
+  });
+
+  mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html')).catch((e) => {
+    console.error(`Main window loadFile failed: ${e.message || e}`);
+  });
 
   mainWindow.on('close', (e) => {
     if (!app.isQuitting) {
@@ -63,6 +84,7 @@ function openSettingsWindow() {
       preload: path.join(__dirname, 'settings-preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: false,
     },
   });
   settingsWindow.setMenuBarVisibility(false);
@@ -166,13 +188,6 @@ app.whenReady().then(() => {
 
   ipcMain.on('settings:close', () => {
     if (settingsWindow && !settingsWindow.isDestroyed()) settingsWindow.close();
-  });
-
-  // 窗口加载完后立刻推送一次当前状态，避免 renderer 错过启动那次
-  mainWindow.webContents.on('did-finish-load', () => {
-    broadcast();
-    fetchAndBroadcast();
-    if (!isConfigured(CONFIG)) openSettingsWindow();
   });
 
   setInterval(fetchAndBroadcast, CONFIG.pollIntervalMs);
