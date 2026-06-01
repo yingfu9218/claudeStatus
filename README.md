@@ -70,36 +70,23 @@ sudo apt install gnome-shell-extension-appindicator
 
 ## 配置
 
-真实配置放在 `config.json`，已加入 `.gitignore`，**不会提交到 git**。仓库里只有模板 `config.example.json`。
+配置改为**在程序内填写**，无需手动复制或编辑文件。首次启动时主窗口显示「未配置账号」视图并自动弹出「账号设置」窗口，填入 `apiId` 和 `apiHost` 点保存即可。之后随时可右键托盘图标 →「账号设置」修改。
 
-首次拉代码后：
+保存的配置写入跨平台的 userData 目录（由 Electron 的 `app.getPath('userData')` 决定），**不在仓库内**，也不会提交到 git：
 
-```bash
-cp config.example.json config.json
-# 然后编辑 config.json 填入你的 apiId
-```
+- macOS：`~/Library/Application Support/claude-status/config.json`
+- Linux：`~/.config/claude-status/config.json`
+- Windows：`%APPDATA%\claude-status\config.json`
 
-`config.json` 字段：
-
-```json
-{
-  "apiId": "你的-uuid-账号-id",
-  "apiHost": "xxxx.com",
-  "apiPath": "/apiStats/api/user-stats",
-  "pollIntervalMs": 30000
-}
-```
-
-字段说明：
+填写字段：
 
 - `apiId`：账号 UUID，必填。
-- `apiHost` / `apiPath`：接口域名和路径，正常无需改。
-- `pollIntervalMs`：轮询间隔毫秒数，默认 30 秒。
+- `apiHost`：接口域名，必填（只填域名，不含 `https://`）。
 
-启动时如果 `config.json` 不存在或字段缺失，程序会弹错误对话框提示并退出。
+`apiPath`（接口路径）和 `pollIntervalMs`（轮询间隔，默认 30 秒）为内置默认值，正常无需改动。仓库里的 `config.example.json` 仅作为字段格式的参考文档。
 
 托盘菜单「查看详情」的 URL 由 host 和 apiId 自动拼接，格式：
-`https://<apiHost>/admin-next/api-stats?apiId=<apiId>`
+`https://<apiHost>/admin-next/api-stats?apiId=<apiId>`。未配置时点「查看详情」会改为打开账号设置窗口。
 
 ---
 
