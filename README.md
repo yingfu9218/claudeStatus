@@ -146,11 +146,10 @@ npm start -- --no-sandbox
 npm install          # 含 electron-builder
 ```
 
-应用图标在 `build/`：`build/icon.png`（≥512×512，Linux 用）、`build/icon.ico`（Windows）、`build/icon.icns`（macOS）。源图是 `assets/claude.png`；如需重新生成：
+应用图标：源图是 `assets/icon.png`，构建用图标是 `build/icon.png`（1024×1024 方形，由源图缩放补白生成）。三平台的 `.ico` / `.icns` 由 electron-builder 在构建时从这张 PNG 自动派生，无需手动转换。如需重新生成 `build/icon.png`（例如换了源图）：
 
 ```bash
-npx electron-icon-builder --input=assets/claude.png --output=build
-# 或本机有 ImageMagick / icoutils / icnsutils 时手动转
+npm run icon          # 跑 scripts/gen-icon.js，用 jimp 把 assets/icon.png 缩放补白成 1024×1024
 ```
 
 ### 命令

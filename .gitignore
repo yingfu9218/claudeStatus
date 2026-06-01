@@ -9,5 +9,3 @@ test/
 
 # build artifacts
 release/
-build/icon.ico
-build/icon.icns
