@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'">
+  <title>账号设置</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <h2>账号设置</h2>
+    <div class="field">
+      <label for="apiId">API ID</label>
+      <input id="apiId" type="text" autocomplete="off" spellcheck="false" placeholder="UUID 格式的 apiId">
+    </div>
+    <div class="field">
+      <label for="apiHost">API Host</label>
+      <input id="apiHost" type="text" autocomplete="off" spellcheck="false" placeholder="例如 example.com（不含 https://）">
+    </div>
+    <p id="form-error" class="form-error" hidden></p>
+    <div class="actions">
+      <button id="cancel-btn" type="button" class="secondary">取消</button>
+      <button id="save-btn" type="button">保存</button>
+    </div>
+  </main>
+  <script src="settings.js"></script>
+</body>
+</html>
