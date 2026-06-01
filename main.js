@@ -1,38 +1,15 @@
 const path = require('node:path');
-const fs = require('node:fs');
-const { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, shell, dialog } = require('electron');
+const { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, shell } = require('electron');
 const { fetchUserStats } = require('./lib/stats');
+const { loadConfig, saveConfig, isConfigured } = require('./lib/config');
 
-// ===== 配置 =====
-// 真实配置在 config.json（已 gitignore），模板在 config.example.json。
-// 首次运行需把 config.example.json 复制为 config.json 并填入 apiId。
-const CONFIG_PATH = path.join(__dirname, 'config.json');
-const CONFIG_EXAMPLE_PATH = path.join(__dirname, 'config.example.json');
+let CONFIG = null;        // 运行时配置，在 app ready 后从 userData 读取
+let CONFIG_DIR = null;    // app.getPath('userData')
 
-function loadConfig() {
-  if (!fs.existsSync(CONFIG_PATH)) {
-    const msg = `缺少 config.json。\n\n请复制 config.example.json 为 config.json，并填入你的 apiId：\n  cp ${CONFIG_EXAMPLE_PATH} ${CONFIG_PATH}`;
-    if (app.isReady()) dialog.showErrorBox('配置缺失', msg);
-    console.error(msg);
-    app.quit();
-    throw new Error('config.json missing');
-  }
-  const cfg = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-  for (const k of ['apiId', 'apiHost', 'apiPath', 'pollIntervalMs']) {
-    if (cfg[k] === undefined || cfg[k] === '' || cfg[k] === null) {
-      throw new Error(`config.json 缺少字段: ${k}`);
-    }
-  }
-  return cfg;
+function detailsUrl() {
+  if (!CONFIG || !isConfigured(CONFIG)) return null;
+  return `https://${CONFIG.apiHost}/admin-next/api-stats?apiId=${CONFIG.apiId}`;
 }
-
-const CONFIG = loadConfig();
-const API_ID = CONFIG.apiId;
-const API_HOST = CONFIG.apiHost;
-const API_PATH = CONFIG.apiPath;
-const POLL_INTERVAL_MS = CONFIG.pollIntervalMs;
-const DETAILS_URL = `https://${API_HOST}/admin-next/api-stats?apiId=${API_ID}`;
-// =================
 
 let mainWindow = null;
 let tray = null;
@@ -63,6 +40,30 @@ function createWindow() {
   });
 }
 
+let settingsWindow = null;
+
+function openSettingsWindow() {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.show();
+    settingsWindow.focus();
+    return;
+  }
+  settingsWindow = new BrowserWindow({
+    width: 360,
+    height: 280,
+    resizable: false,
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'settings-preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  settingsWindow.setMenuBarVisibility(false);
+  settingsWindow.loadFile(path.join(__dirname, 'renderer', 'settings.html'));
+  settingsWindow.on('closed', () => { settingsWindow = null; });
+}
+
 function createTray() {
   // macOS 用模板图标（黑色 + 透明），系统自动按菜单栏主题反色；
   // 其他平台用彩色 sparkle。
@@ -82,7 +83,12 @@ function createTray() {
   const contextMenu = Menu.buildFromTemplate([
     { label: '显示主窗口', click: () => { mainWindow && mainWindow.show(); mainWindow && mainWindow.focus(); } },
     { label: '立即刷新',   click: () => { fetchAndBroadcast(); } },
-    { label: '查看详情',   click: () => { shell.openExternal(DETAILS_URL); } },
+    { label: '账号设置',   click: () => { openSettingsWindow(); } },
+    { label: '查看详情',   click: () => {
+        const url = detailsUrl();
+        if (url) shell.openExternal(url);
+        else openSettingsWindow();
+      } },
     { type: 'separator' },
     { label: '退出',       click: () => { app.isQuitting = true; app.quit(); } },
   ]);
@@ -100,8 +106,12 @@ function createTray() {
 }
 
 async function fetchAndBroadcast() {
+  if (!isConfigured(CONFIG)) {
+    broadcast();
+    return;
+  }
   try {
-    const data = await fetchUserStats(API_ID, { host: API_HOST, path: API_PATH });
+    const data = await fetchUserStats(CONFIG.apiId, { host: CONFIG.apiHost, path: CONFIG.apiPath });
     lastSuccess = data;
     lastError = null;
     broadcast();
@@ -112,7 +122,7 @@ async function fetchAndBroadcast() {
 }
 
 function broadcast() {
-  const payload = { lastSuccess, lastError, now: Date.now() };
+  const payload = { lastSuccess, lastError, now: Date.now(), configured: isConfigured(CONFIG) };
 
   if (tray) {
     const txt = lastSuccess ? lastSuccess.trayText : '$-- / $--';
@@ -127,18 +137,49 @@ function broadcast() {
 
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null);            // 去掉默认 File/Edit/View 菜单
+  CONFIG_DIR = app.getPath('userData');
+  CONFIG = loadConfig(CONFIG_DIR);
+
   createWindow();
   createTray();
 
   ipcMain.on('refresh-request', () => { fetchAndBroadcast(); });
 
+  ipcMain.handle('settings:get', () => ({ apiId: CONFIG.apiId, apiHost: CONFIG.apiHost }));
+
+  ipcMain.handle('settings:save', (_e, data) => {
+    try {
+      saveConfig(CONFIG_DIR, data);
+      CONFIG = loadConfig(CONFIG_DIR);
+      fetchAndBroadcast();
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e.message || String(e) };
+    }
+  });
+
+  ipcMain.on('settings:close', () => {
+    if (settingsWindow && !settingsWindow.isDestroyed()) settingsWindow.close();
+  });
+
   // 窗口加载完后立刻推送一次当前状态，避免 renderer 错过启动那次
   mainWindow.webContents.on('did-finish-load', () => {
     broadcast();
     fetchAndBroadcast();
+    if (!isConfigured(CONFIG)) openSettingsWindow();
   });
 
-  setInterval(fetchAndBroadcast, POLL_INTERVAL_MS);
+  setInterval(fetchAndBroadcast, CONFIG.pollIntervalMs);
+});
+
+// macOS：点击 Dock 图标触发 activate，显示主窗口
+app.on('activate', () => {
+  if (mainWindow) {
+    mainWindow.show();
+    mainWindow.focus();
+  } else {
+    createWindow();
+  }
 });
 
 // 阻止所有窗口关闭时退出 — 走托盘菜单退出
