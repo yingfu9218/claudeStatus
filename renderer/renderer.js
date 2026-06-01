@@ -2,6 +2,7 @@ const els = {
   loading: document.getElementById('loading-view'),
   error: document.getElementById('error-view'),
   data: document.getElementById('data-view'),
+  unconfigured: document.getElementById('unconfigured-view'),
   retry: document.getElementById('retry-btn'),
   updated: document.getElementById('updated-text'),
   dailyValue: document.getElementById('daily-value'),
@@ -36,10 +37,16 @@ function showView(name) {
   els.loading.hidden = name !== 'loading';
   els.error.hidden = name !== 'error';
   els.data.hidden = name !== 'data';
+  els.unconfigured.hidden = name !== 'unconfigured';
 }
 
 function render(payload) {
   const { lastSuccess, lastError, now } = payload;
+
+  if (payload.configured === false) {
+    showView('unconfigured');
+    return;
+  }
 
   if (!lastSuccess && !lastError) {
     showView('loading');
