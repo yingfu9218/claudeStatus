@@ -3,6 +3,12 @@ const { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, shell } = require(
 const { fetchUserStats } = require('./lib/stats');
 const { loadConfig, saveConfig, isConfigured } = require('./lib/config');
 
+// Ubuntu 24.04+ 默认限制非特权 user namespace（AppArmor
+// apparmor_restrict_unprivileged_userns=1），Electron 的 SUID 沙箱因此无法启动，
+// 安装版（/opt 下）会一启动就崩。本应用只渲染本地 UI，关闭沙箱影响很小。
+// 必须在 app ready 之前追加该开关。
+app.commandLine.appendSwitch('no-sandbox');
+
 let CONFIG = null;        // 运行时配置，在 app ready 后从 userData 读取
 let CONFIG_DIR = null;    // app.getPath('userData')
 

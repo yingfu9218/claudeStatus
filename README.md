@@ -24,35 +24,21 @@ npm install
 
 `npm install` 会下载 Electron（~130MB），首次安装稍慢。
 
-### Linux 额外步骤（沙箱权限）
+### Linux 沙箱说明
 
-Ubuntu / 其他 Linux 上首次启动会报 `chrome-sandbox` SUID 错误。选一个修：
+Ubuntu 24.04+ 默认限制非特权 user namespace（`apparmor_restrict_unprivileged_userns=1`），
+Electron 的 SUID 沙箱因此无法启动，安装版会一启动就崩。本应用只渲染本地 UI，已在
+`main.js` 里内置 `app.commandLine.appendSwitch('no-sandbox')` 关闭沙箱，**开发和安装版都无需再手动加 `--no-sandbox`**。
 
-**A. 改沙箱权限（推荐，保留安全沙箱）**
+如果你更希望保留 Chromium 沙箱，可移除 `main.js` 里那行开关，然后用下面任一方式自行处理沙箱权限：
 
 ```bash
+# A. 给 chrome-sandbox 设权限（dev 环境，每次重装 Electron 都要重跑）
 sudo chown root:root node_modules/electron/dist/chrome-sandbox
 sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
-```
 
-注意：每次 `npm install` 重装 Electron 都要重新跑一遍。
-
-**B. 启动时禁用沙箱（最省事）**
-
-```bash
-npm start -- --no-sandbox
-```
-
-或永久写进 `package.json`：
-
-```json
-"start": "electron . --no-sandbox"
-```
-
-**C. 启用非特权用户命名空间（系统级一劳永逸）**
-
-```bash
-echo 'kernel.unprivileged_userns_clone=1' | sudo tee /etc/sysctl.d/99-userns.conf
+# B. 系统级放开非特权 user namespace
+echo 'kernel.apparmor_restrict_unprivileged_userns=0' | sudo tee /etc/sysctl.d/99-userns.conf
 sudo sysctl --system
 ```
 
@@ -96,8 +82,6 @@ sudo apt install gnome-shell-extension-appindicator
 
 ```bash
 npm start
-# Linux 沙箱未配置时：
-npm start -- --no-sandbox
 ```
 
 启动后：
