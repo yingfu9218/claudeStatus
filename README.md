@@ -128,6 +128,67 @@ npm start -- --no-sandbox
 
 ---
 
+## 打包 / 构建安装包
+
+用 [electron-builder](https://www.electron.build/) 出包。**每个平台的安装包只能在对应系统（或对应的 CI runner）上构建**：
+
+| 目标用户 | 产物 | 构建平台 |
+|---|---|---|
+| Ubuntu / Linux | `.AppImage`、`.deb` | Linux |
+| macOS | `.dmg` | **必须** macOS（Apple 工具链不跨平台） |
+| Windows | `Setup .exe`（NSIS） | Windows（Linux 上需装 Wine，不推荐） |
+
+产物统一输出到 `release/` 目录。
+
+### 准备
+
+```bash
+npm install          # 含 electron-builder
+```
+
+应用图标在 `build/`：`build/icon.png`（≥512×512，Linux 用）、`build/icon.ico`（Windows）、`build/icon.icns`（macOS）。源图是 `assets/claude.png`；如需重新生成：
+
+```bash
+npx electron-icon-builder --input=assets/claude.png --output=build
+# 或本机有 ImageMagick / icoutils / icnsutils 时手动转
+```
+
+### 命令
+
+```bash
+# Linux（AppImage + deb）—— 在 Linux 上跑
+npm run dist:linux
+#   → release/Claude Status-0.1.0.AppImage
+#   → release/claude-status_0.1.0_amd64.deb
+
+# macOS（dmg）—— 在 Mac 上跑
+npm run dist:mac
+#   → release/Claude Status-0.1.0.dmg
+
+# Windows（NSIS 安装器）—— 在 Windows 上跑
+npm run dist:win
+#   → release/Claude Status Setup 0.1.0.exe
+
+# 不打安装器，只解包到 release/<platform>-unpacked/（快速冒烟）
+npm run pack:dir
+
+# 三平台一起（仅当当前系统支持时，一般用于 CI）
+npm run dist:all
+```
+
+### 安装产物
+
+- **AppImage**：`chmod +x 'Claude Status-0.1.0.AppImage'` 后直接运行。
+- **deb**：`sudo dpkg -i claude-status_0.1.0_amd64.deb`（缺依赖时 `sudo apt -f install`）。
+- **dmg**：拖进 Applications。未签名包首次打开需右键 →「打开」绕过 Gatekeeper；正式分发需 Apple Developer 证书 + 公证。
+- **exe**：双击安装，可自选安装目录。
+
+### 跨平台一键出包（可选）
+
+三平台分别在各自系统构建较繁琐，推荐用 GitHub Actions 的 `ubuntu-latest` / `macos-latest` / `windows-latest` 三个 runner 各跑一次对应的 `npm run dist:*`，统一收集 `release/` 产物。（本仓库暂未内置 workflow。）
+
+---
+
 ## 开发
 
 跑单元测试：
